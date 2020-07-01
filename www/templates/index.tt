@@ -1,0 +1,35 @@
+{% extends "base.tt" %}
+
+{% block style %}
+<style>
+
+#map_view {
+  height: 600px;
+  width: 100%;
+}
+
+div#channels_list {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+</style>
+{% end %}
+
+{% block javascript %}
+<script src="{{ static_url("lib/d3js/d3.v4.min.js") }}"></script>
+<script src="{{ static_url("js/index.js") }}"></script>
+{% end %}
+
+{% block body %}
+
+<div class="btn-group" id="channels_list">
+    <button type="button" class="btn btn-secondary" data-channel="all">all</button>
+{% for channel in channels %}
+    <button type="button" class="btn btn-secondary" data-channel="{{ channel }}">{{ channel }}</button>
+{% end %}
+</div>
+
+<iframe id="map_view" src="{{ static_url('data/index_map_all.html') }}"></iframe>
+{% end %}

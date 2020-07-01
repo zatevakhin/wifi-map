@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- Global styles -->
+    <link rel="stylesheet" href="{{ static_url('lib/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ static_url('lib/normalize/normalize.min.css') }}">
+    <link rel="stylesheet" href="{{ static_url('lib/font-awesome/css/font-awesome.min.css') }}">
+    
+    {% block style %}
+        <!-- Pattern inherited styles -->
+    {% end %}
+
+    <title>tagged</title>
+</head>
+<body>
+<!-- Navigation -->
+<!-- <nav class="navbar navbar-expand-lg">
+    <a class="text-center nav-link" title="Main page" href="/">
+        <i class="fa fa-tags"></i>
+    </a>
+</nav> -->
+
+{% block body %}
+    <!-- Inherited page body -->
+{% end %}
+
+<!-- Global javascript -->
+<script src="{{ static_url('lib/jquery/jquery-3.3.1.min.js') }}"></script>
+<script src="{{ static_url('lib/bootstrap/popper.min.js') }}"></script>
+<script src="{{ static_url('lib/bootstrap/bootstrap.min.js') }}"></script>
+
+{% block javascript %}
+    <!-- Pattern inherited javascript -->
+{% end %}
+
+{% block client-teplates %}
+    <!-- Pattern inherited client templates -->
+{% end %}
+
+</body>
+</html>
