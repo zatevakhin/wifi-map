@@ -1,0 +1,4 @@
+www/static/data
+app.db
+*.pyc
+__pycache__
