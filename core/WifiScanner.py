@@ -2,11 +2,12 @@
 
 from wifi import Cell
 from wifi.exceptions import InterfaceError
-from wireless import Wireless
+from core.wifi import NetInterface
 import threading
 import time
 from collections import namedtuple
 from loguru import logger
+
 
 GeoPosition = namedtuple("GeoPosition", ["latitude", "longitude", "altitude"])
 
@@ -65,10 +66,8 @@ class WifiScanner(threading.Thread):
 
                 if not position:
                     continue
-
-                wireless = Wireless()
                 
-                for interface in wireless.interfaces():
+                for interface in NetInterface.all():
                     try:
                         for ap in Cell.all(interface):
                             self.add_ap(connection, ap, position)
