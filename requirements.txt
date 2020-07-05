@@ -1,5 +1,4 @@
 loguru==0.3.2
 tornado==6.0.3
 wifi==0.3.8
-folium==0.11.0
 gps==3.19

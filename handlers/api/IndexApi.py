@@ -8,10 +8,34 @@ class IndexApi(web.RequestHandler):
 
     @classproperty
     def location(cls):
-        return r"/api/index"
+        return r"/api/index/(action_[a-z_]+)"
 
     def initialize(self, storage):
-        pass
+        self.db = storage.get("db")
 
-    def post(self, domain_id):
-        pass
+    def post(self, action):
+        connection = self.db.connect()
+
+        if hasattr(self, action):
+            getattr(self, action)(connection)
+        else:
+            self.write({"msg": 0xFF}) # replace to Errors Enum
+
+    def action_channels(self, connection):
+        records = connection.execute("SELECT * FROM `records`;").fetchall()
+        channel_list = list(set(list(map(lambda item: item.get("channel"), records))))
+
+        self.write({"channels": channel_list})
+
+    def action_heat_map(self, connection):
+        channel = self.get_argument("channel", "all")
+
+        where_condition = "" if channel == "all" else f"WHERE channel={channel}"
+
+        records = connection.execute(f"SELECT * FROM `records` {where_condition};").fetchall()
+
+        heat_map_data = list(map(lambda item: (item.get("latitude"), item.get("longitude"), item.get("signal")), records))
+
+        signal_max = max(map(lambda item: item.get("signal"), records))
+
+        self.write({"heat_map": heat_map_data, "signal_max": signal_max})

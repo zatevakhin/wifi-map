@@ -1,4 +1,6 @@
 www/static/data
 app.db
 *.pyc
+*.bak
+scripts
 __pycache__
