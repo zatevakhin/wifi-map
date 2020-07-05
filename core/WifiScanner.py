@@ -6,7 +6,7 @@ from wireless import Wireless
 import threading
 import time
 from collections import namedtuple
-
+from loguru import logger
 
 GeoPosition = namedtuple("GeoPosition", ["latitude", "longitude", "altitude"])
 
@@ -20,7 +20,9 @@ class WifiScanner(threading.Thread):
         self.working = True
 
     def stop_it(self):
-        self.working = False
+        if self.working:
+            logger.success("Stopping WiFi scanner thread...")
+            self.working = False
 
     def add_ap(self, connection, ap, position):
         query = """INSERT OR IGNORE INTO `records` (
@@ -48,6 +50,11 @@ class WifiScanner(threading.Thread):
             position = None
             while self.working:
                 gps = self.gps.get_current_value()
+
+                if not gps:
+                    logger.critical("GPS is not available!")
+                    self.stop_it()
+                    return
 
                 longitude = gps.get("lon", None)
                 latitude = gps.get("lat", None)
