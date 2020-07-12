@@ -9,4 +9,34 @@
     top: 10px;
     z-index: 999;
 }
+
+#display-mode-controls {
+    position: absolute;
+    top: 10px;
+    z-index: 999;
+    left: 100px;
+}
+
+#display-mode-controls button[data-type="heatmap"] span {
+    color: orange;
+}
+
   
+.user-gps-position-icon {
+    position: absolute;
+    background: red;
+    width: 12px;
+    height: 12px;
+    border-radius: 12px;
+    box-shadow: 2px 2px;
+}
+  
+.access-point-icon {
+    position: absolute;
+    background: blue;
+    width: 10px;
+    height: 10px;
+    border-radius: 10px;
+    box-shadow: 2px 2px;
+}
+

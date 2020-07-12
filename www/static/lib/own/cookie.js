@@ -21,12 +21,12 @@ let Cookie = {
         }
         document.cookie = cookie_string;
     },
-    get: function (cookie_name) {
+    get: function (cookie_name, default_value=null) {
         let results = document.cookie.match(`(^|;) ?${cookie_name}=([^;]*)(;|$)`);
         if (results) {
             return (decodeURI(results[2]));
         } else {
-            return null;
+            return default_value;
         }
     },
     remove: function (cookie_name) {

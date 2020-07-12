@@ -27,15 +27,10 @@ class IndexApi(web.RequestHandler):
 
         self.write({"channels": channel_list})
 
-    def action_heat_map(self, connection):
+    def action_records(self, connection):
         channel = self.get_argument("channel", "all")
 
         where_condition = "" if channel == "all" else f"WHERE channel={channel}"
-
         records = connection.execute(f"SELECT * FROM `records` {where_condition};").fetchall()
 
-        heat_map_data = list(map(lambda item: (item.get("latitude"), item.get("longitude"), item.get("signal")), records))
-
-        signal_max = max(map(lambda item: item.get("signal"), records))
-
-        self.write({"heat_map": heat_map_data, "signal_max": signal_max})
+        self.write({"records": records})

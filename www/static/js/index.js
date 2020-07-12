@@ -1,45 +1,209 @@
 
 
-$(() => {
-    let heatMapLayer = null;
-    let center = Cookie.get("map_center");
-    let zoom = Cookie.get("map_zoom");
-    let map = L.map('map-view', { center: (center ? center.split(" ") : [0, 0]), zoom: zoom });
+const MapDisplayAs = Object.freeze({
+    HEATMAP: 0,
+    MARKERS: 1,
+})
 
-    map.on('zoom', (e) => {
-        Cookie.set("map_zoom", map.getZoom())
-    });
 
-    map.on('move', (e) => {
-        Cookie.set("map_center", Object.values(map.getCenter()).join(" "))
-    });
+const RequestMapData = Object.freeze({
+    POSITION: 0x01,
+    WIFI: 0x02,
+    VISIBLE_ACCESS_POINTS: 0x03
+})
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
 
-    $.post("/api/index/action_channels", (data) => {
-        for (let index = 0; index < data.channels.length; index++) {
-            $("#channels-list").append(aux.template("tt-channels-bar-item", {"channel": data.channels[index]}));
+class MapView {
+
+    constructor() {
+        this.mapDisplayAs = MapDisplayAs.MARKERS;
+        this.gpsLocationMarker = null;
+        
+        this.mapSettings = { center: "0 0", zoom: 4 };
+
+        this.map = null;
+        this.mapHeatmapLayer = null;
+        this.mapHeatmapLayerSignal = null;
+
+        this.mapMarkersLayer = null;
+
+        this.markerList = {};
+
+        this.websocket = null;
+    }
+
+    on_websocket_message(data) {
+        console.log(data);
+
+        if (data.return === RequestMapData.POSITION)
+        {
+            this.on_position_update(data);
         }
-        $("#channels-list").show();
-    })
+        else if (data.return === RequestMapData.VISIBLE_ACCESS_POINTS)
+        {
+            this.on_access_points_list_update(data);
+        }
+        else if (data.return === RequestMapData.WIFI)
+        {
+            this.on_map_data_update(data);
+        }
+    }
 
-    $("#channels-list").on('click', 'button[data-channel]', (evt) => {
-        let channel = $(evt.target).data("channel");
-    
-        $.post("/api/index/action_heat_map", {"channel": channel}, (data) => {
-            if (heatMapLayer)
-            {
-                heatMapLayer.setLatLngs(data.heat_map)
-                heatMapLayer.setOptions({"max": data.signal_max})
+    on_position_update(data) {
+        if (this.gpsLocationMarker)
+        {
+            this.gpsLocationMarker.setLatLng([data.position.latitude, data.position.longitude])
+        }
+        else
+        {
+            var geoPosition = L.icon.glyph({
+                iconUrl: Marker.Red,
+                prefix: 'mdi',
+                glyph: 'crosshairs-gps'
+            });
+
+            this.gpsLocationMarker = L.marker([
+                data.position.latitude, data.position.longitude
+            ], {icon: geoPosition, zIndexOffset: 1000});
+
+            this.gpsLocationMarker.addTo(this.map);
+        }
+    }
+
+    on_map_data_update(data) {
+        if (MapDisplayAs.MARKERS === this.mapDisplayAs) {
+            this.on_markers_update(data)
+        }
+        else if (MapDisplayAs.HEATMAP === this.mapDisplayAs)
+        {
+            this.on_heatmap_update(data)
+        }
+        else
+        {
+            console.log(`NOT HANDLED MAP UPDATE = ${data}`);
+        }
+    }
+
+    on_access_points_list_update(data) {
+
+        Object.keys(this.markerList).forEach((id) => {
+            let marker = this.markerList[id];
+            
+            marker.setZIndexOffset(0);
+            let icon = L.icon.glyph({
+                iconUrl: Marker.Gray,
+                prefix: 'mdi',
+                glyph: 'router-wireless'
+            });
+
+            if (data.devices.includes(id)) {
+                marker.setZIndexOffset(500);
+                icon = L.icon.glyph({
+                    iconUrl: Marker.Green,
+                    prefix: 'mdi',
+                    glyph: 'router-wireless'
+                });
             }
-            else
-            {
-                heatMapLayer = L.heatLayer(data.heat_map, {"blur": 20, "max": data.signal_max, "maxZoom": 1, "minOpacity": 0.2, "radius": 20});
-                heatMapLayer.addTo(map);
-            }
-    
+
+            marker.setIcon(icon);
         })
-    }); 
+    }
+
+    on_markers_update(data) {
+        data.records.forEach((ap) => {
+            console.log("add -> ", ap)
+            this.add_access_point_marker(ap);
+        })
+    }
+
+    on_heatmap_update(data) {
+
+    }
+
+    run() {
+        this.mapSettings = {
+            center: Cookie.get("map_center", this.mapSettings.center).split(" "),
+            zoom: Cookie.get("map_zoom", this.mapSettings.zoom)
+        };
+        
+        this.map = L.map('map-view', {
+            center: this.mapSettings.center,
+            zoom: this.mapSettings.zoom
+        })
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(this.map);
+    
+        this.map.on('zoom', (e) => {
+            Cookie.set("map_zoom", this.map.getZoom())
+        });
+    
+        this.map.on('move', (e) => {
+            Cookie.set("map_center", Object.values(this.map.getCenter()).join(" "))
+        });
+
+
+        this.websocket = new WebSocket('ws://localhost:8002/api/websocket');
+        
+        setInterval(() => {
+            this.websocket.send(JSON.stringify({"action": RequestMapData.WIFI}));
+        }, 1000 * 5);
+
+        setInterval(() => {
+            this.websocket.send(JSON.stringify({"action": RequestMapData.POSITION}));
+        }, 1000 * 5);
+
+        setInterval(() => {
+            this.websocket.send(JSON.stringify({"action": RequestMapData.VISIBLE_ACCESS_POINTS}));
+        }, 1000 * 5);
+
+        this.websocket.addEventListener('message', (event) => {
+            let data = JSON.parse(event.data);
+            this.on_websocket_message(data);
+        });
+
+
+        $.post("/api/index/action_channels", (data) => {
+            for (let index = 0; index < data.channels.length; index++) {
+                $("#channels-list").append(
+                    aux.template("tt-channels-bar-item", {"channel": data.channels[index]})
+                );
+            }
+
+            $("#channels-list").show();
+        });
+
+        $.post("/api/index/action_records", (data) => {
+            for (let index = 0; index < data.records.length; index++) {
+                this.add_access_point_marker(data.records[index]);
+            }
+        });
+    }
+
+    add_access_point_marker(ap) {
+        this.markerList[ap.address] = L.marker([ap.latitude, ap.longitude], {icon: L.icon.glyph({
+            iconUrl: Marker.Gray,
+            prefix: 'mdi',
+            glyph: 'router-wireless'
+        })});
+
+        let marker = this.markerList[ap.address];
+        
+        let tooltipText = "Name: " + (ap.name || "<EMPTY>") + "<br>" 
+        tooltipText += "Address: " + ap.address + "<br>" 
+        tooltipText += "Channel: " + ap.channel + "<br>" 
+        tooltipText += "Frequency: " + ap.frequency + "<br>" 
+        tooltipText += "Signal: " + ap.signal
+
+        marker.bindTooltip(tooltipText);
+
+        marker.addTo(this.map);
+    }
+}
+
+
+$(() => {
+    let mv = new MapView();
+    mv.run();
 });

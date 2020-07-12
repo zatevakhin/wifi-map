@@ -4,3 +4,4 @@ app.db
 *.bak
 scripts
 __pycache__
+.vscode/

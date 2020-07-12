@@ -6,6 +6,10 @@ from datetime import datetime
 import json
 
 
+def md5(s):
+    return hashlib.md5(str(s).encode()).hexdigest()
+
+
 def jsonDecode(data):
     try:
         return json.loads(data)
