@@ -29,6 +29,8 @@ class MapView {
 
         this.markerList = {};
 
+        this.ws_host = window.location.hostname;
+
         this.websocket = null;
     }
 
@@ -144,7 +146,7 @@ class MapView {
         });
 
 
-        this.websocket = new WebSocket('ws://localhost:8002/api/websocket');
+        this.websocket = new WebSocket(`ws://${this.ws_host}:8002/api/websocket`);
         
         setInterval(() => {
             this.websocket.send(JSON.stringify({"action": RequestMapData.WIFI}));
