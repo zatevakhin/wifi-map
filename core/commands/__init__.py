@@ -3,3 +3,4 @@
 from .Command import Command
 from .CmdGpsGetPosition import CmdGpsGetPosition
 from .CmdSaveScanningResults import CmdSaveScanningResults
+from .CmdGetVisibleAccessPoints import CmdGetVisibleAccessPoints

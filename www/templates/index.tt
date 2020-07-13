@@ -3,13 +3,15 @@
 {% block style %}
 <link rel="stylesheet" href="https://cdn.materialdesignicons.com/5.3.45/css/materialdesignicons.min.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.css"/>
-{# <link rel="stylesheet" href="{{ static_url('lib/leaflet.extra-markers/css/leaflet.extra-markers.min.css') }}"/> #}
+<link rel="stylesheet" href="{{ static_url('lib/Leaflet/MarkerCluster.css') }}"/>
+<link rel="stylesheet" href="{{ static_url('lib/Leaflet/MarkerCluster.Default.css') }}"/>
 <link rel="stylesheet" href="{{ static_url('style/index.css') }}"/>
 {% end %}
 
 {% block javascript %}
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.js"></script>
 <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="{{ static_url("lib/Leaflet/leaflet.markercluster.js") }}"></script>
 <script src="{{ static_url("lib/Leaflet/Leaflet.Icon.Glyph.js") }}"></script>
 <script src="{{ static_url("lib/Leaflet/Marker.base64.js") }}"></script>
 <script src="{{ static_url("lib/own/auxiliary.js") }}"></script>

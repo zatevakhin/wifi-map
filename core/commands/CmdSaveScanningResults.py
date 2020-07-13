@@ -38,7 +38,6 @@ class CmdSaveScanningResults(Command):
 
         for _, client in self.ws_clients.items():
             client.new_access_points = client.new_access_points.union(added_ap_list)
-            client.visible_access_points = list(map(lambda ap: ap.address, self.ap_list))
 
     def is_item_exists(self, cursor, item) -> bool:
         record_unique = [item.address, item.channel, item.ssid]

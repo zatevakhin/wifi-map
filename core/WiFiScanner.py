@@ -40,13 +40,19 @@ class WiFiScanner(Worker):
     def run(self):
         while WorkerStatus.WORKING == self.status:
             position = self.gps.get_position()
+            
+            ap_list = self.make_all_interfaces_scan()
+
+            cmd1 = commands.CmdGetVisibleAccessPoints(self.storage, ap_list)
+            self.cmd.put(cmd1)
 
             if not position.latitude or not position.longitude:
+                time.sleep(1)
                 continue
 
-            ap_list = self.make_all_interfaces_scan()
-            cmd = commands.CmdSaveScanningResults(self.storage, ap_list)
-            self.cmd.put(cmd)
+            cmd2 = commands.CmdSaveScanningResults(self.storage, ap_list)
+
+            self.cmd.put(cmd2)
 
             time.sleep(1) 
 

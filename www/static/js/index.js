@@ -24,6 +24,7 @@ class MapView {
         this.map = null;
         this.mapHeatmapLayer = null;
         this.mapHeatmapLayerSignal = null;
+        this.mapMarkerCluster = null;
 
         this.mapMarkersLayer = null;
 
@@ -130,8 +131,15 @@ class MapView {
         
         this.map = L.map('map-view', {
             center: this.mapSettings.center,
-            zoom: this.mapSettings.zoom
+            zoom: this.mapSettings.zoom,
+            maxZoom: 18,
         })
+
+        this.mapMarkerCluster = L.markerClusterGroup({
+            disableClusteringAtZoom: 18
+        });
+
+        this.map.addLayer(this.mapMarkerCluster);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -200,7 +208,8 @@ class MapView {
 
         marker.bindTooltip(tooltipText);
 
-        marker.addTo(this.map);
+        this.mapMarkerCluster.addLayer(marker);
+        // marker.addTo(this.map);
     }
 }
 
