@@ -15,5 +15,4 @@ class CmdGetVisibleAccessPoints(Command):
         ap_addresses = list(map(lambda ap: ap.address, self.ap_list))
 
         for _, client in self.ws_clients.items():
-            print(client, ap_addresses)
             client.visible_access_points = ap_addresses

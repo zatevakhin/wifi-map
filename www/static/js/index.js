@@ -91,22 +91,12 @@ class MapView {
 
         Object.keys(this.markerList).forEach((id) => {
             let marker = this.markerList[id];
-            
-            marker.setZIndexOffset(0);
-            let icon = L.icon.glyph({
-                iconUrl: Marker.Gray,
-                prefix: 'mdi',
-                glyph: 'router-wireless'
-            });
+            let icon = marker.getIcon();
 
-            if (data.devices.includes(id)) {
-                marker.setZIndexOffset(500);
-                icon = L.icon.glyph({
-                    iconUrl: Marker.Green,
-                    prefix: 'mdi',
-                    glyph: 'router-wireless'
-                });
-            }
+            let isIncludes = data.devices.includes(id);
+
+            marker.setZIndexOffset(isIncludes ? 1 : 0);
+            icon.options.iconUrl = isIncludes ? Marker.Green : Marker.Gray;
 
             marker.setIcon(icon);
         })
@@ -195,7 +185,8 @@ class MapView {
         this.markerList[ap.address] = L.marker([ap.latitude, ap.longitude], {icon: L.icon.glyph({
             iconUrl: Marker.Gray,
             prefix: 'mdi',
-            glyph: 'router-wireless'
+            glyph: 'router-wireless',
+            glyphColor: ap.name ? 'white' : 'black',
         })});
 
         let marker = this.markerList[ap.address];
