@@ -95,7 +95,7 @@ class MapView {
 
             let isIncludes = data.devices.includes(id);
 
-            marker.setZIndexOffset(isIncludes ? 1 : 0);
+            marker.setZIndexOffset(isIncludes ? 100 : 0);
             icon.options.iconUrl = isIncludes ? Marker.Green : Marker.Gray;
 
             marker.setIcon(icon);
