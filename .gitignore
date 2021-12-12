@@ -2,6 +2,8 @@ www/static/data
 app.db
 *.pyc
 *.bak
+*.dev-deps
+pyiw
 scripts
 __pycache__
 .vscode/

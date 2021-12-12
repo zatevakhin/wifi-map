@@ -1,10 +1,11 @@
 {% extends "base.tt" %}
 
 {% block style %}
-<link rel="stylesheet" href="https://cdn.materialdesignicons.com/5.3.45/css/materialdesignicons.min.css"/>
+<link rel="stylesheet" href="https://cdn.materialdesignicons.com/5.4.55/css/materialdesignicons.min.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.css"/>
 <link rel="stylesheet" href="{{ static_url('lib/Leaflet/MarkerCluster.css') }}"/>
 <link rel="stylesheet" href="{{ static_url('lib/Leaflet/MarkerCluster.Default.css') }}"/>
+<link rel="stylesheet" href="{{ static_url('lib/Leaflet/leaflet.contextmenu.min.css') }}"/>
 <link rel="stylesheet" href="{{ static_url('style/index.css') }}"/>
 {% end %}
 
@@ -12,7 +13,9 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.js"></script>
 <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
 <script src="{{ static_url("lib/Leaflet/leaflet.markercluster.js") }}"></script>
+<script src="{{ static_url("lib/Leaflet/leaflet.contextmenu.min.js") }}"></script>
 <script src="{{ static_url("lib/Leaflet/Leaflet.Icon.Glyph.js") }}"></script>
+<script src="{{ static_url("lib/Leaflet/Leaflet.Control.Custom.js") }}"></script>
 <script src="{{ static_url("lib/Leaflet/Marker.base64.js") }}"></script>
 <script src="{{ static_url("lib/own/auxiliary.js") }}"></script>
 <script src="{{ static_url("lib/own/cookie.js") }}"></script>
@@ -23,9 +26,18 @@
 <div id="map-view"></div>
 <div class="user-gps-position-icon" style="display:none"></div>
 <div class="access-point-icon" style="display:none"></div>
-<div class="btn-group" id="channels-list" style="display:none">
+
+{# <div class="btn-group" id="channels-list" style="display:none">
     <button type="button" class="btn btn-secondary btn-sm" data-channel="all">all</button>
+</div> #}
+
+<div id="system-statuses" class="btn-group">
+    <span class="btn btn-dark btn-sm gps-status"><i class="mdi mdi-18px mdi-crosshairs-question"></i></span>
+    <span class="btn btn-dark btn-sm web-socket-status"><i class="mdi mdi-18px mdi-web"></i></span>
 </div>
+
+<div class="btn-group" id="devices-list" style="display:none"></div>
+<div class="btn-group" id="devices-operations" style="display:none"></div>
 
 <div class="btn-group" id="display-mode-controls">
     <!-- 0 - Heatmap, 1 - Markers -->
@@ -34,6 +46,17 @@
 </div>
 
 <script type="text/template" id="tt-channels-bar-item">
-<button type="button" class="btn btn-secondary btn-sm" data-channel="{channel}">{channel}</button>
+    <button type="button" class="btn btn-secondary btn-sm" data-channel="{channel}">{channel}</button>
 </script>
+
+<script type="text/template" id="tt-device-action">
+    <button type="button" title="{title}" class="btn btn-secondary btn-sm" data-device="{device}" data-action="{action}">{text}</button>
+</script>
+
+
+<script type="text/template" id="tt-device-item">
+    <button type="button" class="btn btn-sm" data-device="{device}" data-enabled="{enabled}" data-monitor="{monitor}" data-monitor-available={monitor_available}>{device}</button>
+</script>
+
+<canvas id="canvas-txt" style="display:none"></canvas>
 {% end %}

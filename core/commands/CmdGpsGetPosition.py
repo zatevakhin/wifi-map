@@ -5,16 +5,14 @@ from core import GpsPoller
 
 class CmdGpsGetPosition(Command):
 
-    def __init__(self, storage):
-        Command.__init__(self, storage.get(GpsPoller.WORKER_NAME))
+    def __init__(self, storage, position):
         self.ws_clients = storage.get("ws-clients")
+        self.position = position
 
     def execute(self):
-        position = self.receiver.get_position()
-
         for _, client in self.ws_clients.items():
             client.gps_position.update({
-                "latitude": position.latitude,
-                "longitude": position.longitude,
-                "altitude": position.altitude
+                "latitude": self.position.latitude,
+                "longitude": self.position.longitude,
+                "altitude": self.position.altitude
             })

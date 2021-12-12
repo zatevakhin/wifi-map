@@ -7,9 +7,11 @@ from loguru import logger
 from handlers.pages import Index
 from handlers.api import IndexApi, WebSocketApi
 from core import AppServer, Storage, Database
-from core.GpsPoller import GpsPoller, WORKER_NAME as GPS_NAME
-from core.WiFiScanner import WiFiScanner, WORKER_NAME as WIFI_NAME
-from core.CommandHandler import CommandHandler, WORKER_NAME as CMD_NAME
+from core.GpsPoller import GpsPoller, WORKER_NAME as GPS_POLLER
+from core.WiFiScanner import WiFiScanner, WORKER_NAME as WIFI_SCANNER
+from core.WiFiSniffer import WiFiSniffer, WORKER_NAME as WIFI_SNIFFER
+from core.CommandHandler import CommandHandler, WORKER_NAME as CMD_HANDLER
+from core.DataManager import DataManager, WORKER_NAME as DATA_MANAGER
 
 from queue import Queue
 
@@ -27,13 +29,18 @@ def main():
     storage.set("ws-clients", dict())
     storage.set("db", Database("app.db"))
 
-    storage.set(CMD_NAME, CommandHandler())
-    storage.set(GPS_NAME, GpsPoller())
-    storage.set(WIFI_NAME, WiFiScanner(storage))
+    services = [
+        (CMD_HANDLER, CommandHandler()),
+        (DATA_MANAGER, DataManager(storage)),
+        (GPS_POLLER, GpsPoller(storage)),
+        (WIFI_SCANNER, WiFiScanner(storage)),
+        (WIFI_SNIFFER, WiFiSniffer(storage))
+    ]
 
-    storage.get(CMD_NAME).start()
-    storage.get(GPS_NAME).start()
-    storage.get(WIFI_NAME).start()
+    storage.set("services", services)
+
+    tuple(map(lambda i: storage.set(*i), services))
+    tuple(map(lambda i: i[-1].start(), services))
 
     # Settings
     app.add_setting({"debug": True})
@@ -48,10 +55,10 @@ def main():
     try:
         app.run()
     except KeyboardInterrupt:
-        threads = map(lambda i: storage.get(i), [CMD_NAME, GPS_NAME, WIFI_NAME])
+        threads = map(lambda i: storage.get(i), [CMD_HANDLER, DATA_MANAGER, GPS_POLLER, WIFI_SCANNER, WIFI_SNIFFER])
 
-        map(lambda item: item.stop(), threads)
-        map(lambda item: item.join(), threads)
+        tuple(map(lambda item: item.stop(), threads))
+        tuple(map(lambda item: item.join(), threads))
 
         logger.info("Stopping server!")
     except Exception as e:

@@ -3,20 +3,88 @@
 import sqlite3
 
 
-CREATE_ALL_TABLES = """
-CREATE TABLE IF NOT EXISTS `records` (
-    `id`        INTEGER  PRIMARY KEY NOT NULL,
-    `address`   CHAR(17)             NOT NULL,
-    `channel`   INTEGER              NOT NULL,
-    `frequency` REAL                 NOT NULL,
-    `signal`    INTEGER              NOT NULL,
-    `name`      TEXT                 NOT NULL,
-    `latitude`  REAL                 NOT NULL,
-    `longitude` REAL                 NOT NULL,
-    `altitude`  REAL                 NOT NULL,
+CREATE_ACCESS_POINT_TABLE = """
+    CREATE TABLE IF NOT EXISTS AccessPoint (
+        id    INTEGER  PRIMARY KEY NOT NULL,
+        bssid CHAR(17)             NOT NULL,
 
-    UNIQUE(address, channel, name)
-);
+        UNIQUE(bssid)
+    );
+"""
+
+CREATE_CLIENT_TABLE = """
+    CREATE TABLE IF NOT EXISTS Client (
+        id    INTEGER  PRIMARY KEY NOT NULL,
+        mac   CHAR(17)             NOT NULL,
+
+        UNIQUE(mac)
+    );
+"""
+
+CREATE_WITH_SSID_TABLE = """
+    CREATE TABLE IF NOT EXISTS WithSsid (
+        id      INTEGER  PRIMARY KEY NOT NULL,
+        ap_id   INTEGER              NOT NULL,
+        ssid    TEXT                 NOT NULL,
+        t_stamp TIMESTAMP DEFAULT    CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (ap_id) REFERENCES AccessPoint(id),
+        UNIQUE(ap_id, ssid)
+    );
+"""
+
+CREATE_AT_CHANNEL_TABLE = """
+    CREATE TABLE IF NOT EXISTS AtChannel (
+        id        INTEGER PRIMARY KEY NOT NULL,
+        ap_id     INTEGER             NOT NULL,
+        channel   INTEGER             NOT NULL,
+        t_stamp   TIMESTAMP DEFAULT   CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (ap_id) REFERENCES AccessPoint(id),
+        UNIQUE(ap_id, channel)
+    );
+"""
+
+CREATE_WITH_ENCRYPTION_TABLE = """
+    CREATE TABLE IF NOT EXISTS WithEncryption (
+        id         INTEGER PRIMARY KEY NOT NULL,
+        ap_id      INTEGER             NOT NULL,
+        crypto  INTEGER             NOT NULL,
+        t_stamp    TIMESTAMP DEFAULT   CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (ap_id) REFERENCES AccessPoint(id),
+        UNIQUE(ap_id, crypto)
+    );
+"""
+
+CREATE_AT_GEOPOSITION_TABLE = """
+    CREATE TABLE IF NOT EXISTS AtGeoposition (
+        id        INTEGER PRIMARY KEY NOT NULL,
+        ap_id     INTEGER             NOT NULL,
+        latitude  REAL                NOT NULL,
+        longitude REAL                NOT NULL,
+        t_stamp   TIMESTAMP DEFAULT   CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (ap_id) REFERENCES AccessPoint(id)
+    );
+"""
+
+CREATE_HANDSHAKE_TABLE = """
+    CREATE TABLE IF NOT EXISTS Handshake (
+        id        INTEGER PRIMARY KEY NOT NULL,
+        ap_id     INTEGER             NOT NULL,
+        cl_id     INTEGER             NOT NULL,
+        beacon    BLOB                NOT NULL,
+        one       BLOB                NOT NULL,
+        two       BLOB                NOT NULL,
+        three     BLOB                NOT NULL,
+        four      BLOB                NOT NULL,
+        t_stamp   TIMESTAMP DEFAULT   CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (ap_id) REFERENCES AccessPoint(id),
+        FOREIGN KEY (cl_id) REFERENCES Client(id),
+        UNIQUE(ap_id, cl_id)
+    );
 """
 
 
@@ -27,7 +95,14 @@ class Database(object):
 
         with self.connect() as connection:
             c = connection.cursor()
-            c.execute(CREATE_ALL_TABLES)
+            c.execute(CREATE_ACCESS_POINT_TABLE)
+            c.execute(CREATE_CLIENT_TABLE)
+            c.execute(CREATE_WITH_SSID_TABLE)
+            c.execute(CREATE_AT_CHANNEL_TABLE)
+            c.execute(CREATE_WITH_ENCRYPTION_TABLE)
+            c.execute(CREATE_AT_GEOPOSITION_TABLE)
+            c.execute(CREATE_HANDSHAKE_TABLE)
+
 
     def connect(self):
         connection = sqlite3.connect(self.db_name)

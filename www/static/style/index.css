@@ -3,12 +3,34 @@
     width: 100%;
   }
   
-#channels-list {
+/* #channels-list {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 999;
+} */
+
+#system-statuses {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 999;
+}
+
+#devices-list {
     position: absolute;
     right: 10px;
     top: 10px;
     z-index: 999;
 }
+
+#devices-operations {
+    position: absolute;
+    right: 10px;
+    top: 50px;
+    z-index: 999;
+}
+
 
 #display-mode-controls {
     position: absolute;
@@ -21,7 +43,6 @@
     color: orange;
 }
 
-  
 .user-gps-position-icon {
     position: absolute;
     background: red;

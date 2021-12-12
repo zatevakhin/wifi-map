@@ -21,11 +21,11 @@ INSERT OR IGNORE INTO WithSsid (ap_id, ssid) VALUES(?, ?);
 '''
 
 ADD_ACCESS_POINT_CHANNEL = '''
-INSERT OR IGNORE INTO AtChannel (ap_id, channel, signal, frequency) VALUES(?, ?, ?, ?);
+INSERT OR IGNORE INTO AtChannel (ap_id, channel) VALUES(?, ?);
 '''
 
 ADD_ACCESS_POINT_ENCRYPTION = '''
-INSERT OR IGNORE INTO WithEncryption (ap_id, encrypted, encryption) VALUES(?, ?, ?);
+INSERT OR IGNORE INTO WithEncryption (ap_id, crypto) VALUES(?, ?);
 '''
 
 ADD_ACCESS_POINT_GEOPOSITION = '''
@@ -44,13 +44,13 @@ REMOVE_ACCESS_POINT_GEOPOSITION = '''
 DELETE FROM AtGeoposition WHERE ap_id=?;
 '''
 
-class CmdSaveScanningResults(Command):
+class CmdSaveAcessPointData(Command):
 
-    def __init__(self, storage, ap_list):
+    def __init__(self, storage, position, ap_list):
         Command.__init__(self, storage.get(WiFiScanner.WORKER_NAME))
         self.db = storage.get("db")
-        self.ws_clients = storage.get("ws-clients")
         self.ap_list = ap_list
+        self.position = position
 
     def execute(self):
         with self.db.connect() as connection:
@@ -66,11 +66,12 @@ class CmdSaveScanningResults(Command):
             if is_new and ap:
                 added_ap_list.add(ap["id"])
 
-        for _, client in self.ws_clients.items():
-            client.new_access_points = client.new_access_points.union(added_ap_list)
+        # for _, client in self.ws_clients.items():
+        #     client.new_access_points = client.new_access_points.union(added_ap_list)
+
 
     def get_access_point(self, cursor, item):
-        return cursor.execute(CHECK_ACCESS_POINT, [item.address]).fetchone() or {}
+        return cursor.execute(CHECK_ACCESS_POINT, [item.bssid]).fetchone() or {}
 
     def get_access_point_geoposition(self, cursor, access_point):
         return cursor.execute(CHECK_ACCESS_POINT_GEOPOSITION, [access_point["id"]]).fetchone() or {}
@@ -87,95 +88,63 @@ class CmdSaveScanningResults(Command):
         self.save_access_point_ssid(cursor, item, access_point)
         self.save_access_point_channel(cursor, item, access_point)
         self.save_access_point_encryption(cursor, item, access_point)
-        self.save_access_point_geoposition(cursor, item, access_point, is_new)
+        self.save_access_point_geoposition(cursor, item, access_point)
 
         return is_new, access_point
 
     def save_access_point(self, cursor, item) -> int:
-        cursor.execute(ADD_ACCESS_POINT, [item.address])
-        return {"id": cursor.lastrowid, "bssid": item.address}
+        cursor.execute(ADD_ACCESS_POINT, [item.bssid])
+        return {"id": cursor.lastrowid, "bssid": item.bssid}
 
     def save_access_point_ssid(self, cursor, item, access_point):
         cursor.execute(ADD_ACCESS_POINT_SSID, [access_point["id"], item.ssid])
         return {"id": access_point["id"], "ap_id": access_point["id"], "ssid": item.ssid}
 
     def save_access_point_channel(self, cursor, item, access_point):
-        frequency = float(item.frequency.split(" ")[0])
         cursor.execute(ADD_ACCESS_POINT_CHANNEL, [
-            access_point["id"], item.channel, item.signal, frequency
+            access_point["id"], item.channel
         ])
 
         return {
             "id": access_point["id"],
-            "channel": item.channel,
-            "signal": item.signal,
-            "frequency": frequency
+            "channel": item.channel
         }
 
     def save_access_point_encryption(self, cursor, item, access_point):
         cursor.execute(ADD_ACCESS_POINT_ENCRYPTION, [
-            access_point["id"], item.encrypted, item.encryption_type
+            access_point["id"], int(item.crypto.value)
         ])
 
         return {
             "id": access_point["id"],
-            "encrypted": item.encrypted,
-            "encryption": item.encryption_type,
+            "crypto": int(item.crypto.value),
         }
 
-    def save_access_point_encryption(self, cursor, item, access_point):
-        cursor.execute(ADD_ACCESS_POINT_ENCRYPTION, [
-            access_point["id"], item.encrypted, item.encryption_type
-        ])
+    def save_access_point_geoposition(self, cursor, item, access_point):
 
-        return {
-            "id": access_point["id"],
-            "encrypted": item.encrypted,
-            "encryption": item.encryption_type,
-        }
-
-    def save_access_point_geoposition(self, cursor, item, access_point, is_new):
-
-        is_latitude_close = math.isclose(position.latitude, 0.0, rel_tol=1e-1)
-        is_longitude_close = math.isclose(position.longitude, 0.0, rel_tol=1e-1)
+        is_latitude_close = math.isclose(self.position.latitude, 0.0, rel_tol=1e-1)
+        is_longitude_close = math.isclose(self.position.longitude, 0.0, rel_tol=1e-1)
         
         if is_latitude_close and is_longitude_close:
             return None
 
         ap_geoposition = self.get_access_point_geoposition(cursor, access_point)
 
-        ap_latitude = ap_geoposition.get("latitude", 0.0)
-        ap_longitude = ap_geoposition.get("longitude", 0.0)
-        
-        is_latitude_close = math.isclose(position.latitude, ap_latitude, rel_tol=1e-3)
-        is_longitude_close = math.isclose(position.longitude, ap_longitude, rel_tol=1e-3)
-
-        if ap_geoposition and is_latitude_close and is_longitude_close:
-            try:
-                cursor.execute(UPDATE_ACCESS_POINT_GEOPOSITION, [
-                    position.latitude,
-                    position.longitude,
+        if ap_geoposition:
+            cursor.execute(UPDATE_ACCESS_POINT_GEOPOSITION, [
+                    self.position.latitude,
+                    self.position.longitude,
                     access_point["id"]
                 ])
-            except sqlite3.IntegrityError:
-                cursor.execute(REMOVE_ACCESS_POINT_GEOPOSITION, [access_point["id"]])
-
-            is_new = True
-
-            return {
-                "id": access_point["id"],
-                "latitude": position.latitude,
-                "longitude": position.longitude,
-            }
-
-        cursor.execute(ADD_ACCESS_POINT_GEOPOSITION, [
-            access_point["id"],
-            position.latitude,
-            position.longitude
-        ])
+        else:
+            cursor.execute(ADD_ACCESS_POINT_GEOPOSITION, [
+                access_point["id"],
+                self.position.latitude,
+                self.position.longitude
+            ])
 
         return {
             "id": access_point["id"],
-            "latitude": position.latitude,
-            "longitude": position.longitude,
+            "latitude": self.position.latitude,
+            "longitude": self.position.longitude,
         }

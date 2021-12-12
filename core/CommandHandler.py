@@ -17,7 +17,7 @@ class CommandHandler(Worker):
         Worker.__init__(self, name=WORKER_NAME)
 
         self.commands = Queue()
-        self.status = WorkerStatus.WORKING
+        self.set_status(WorkerStatus.WORKING)
 
     def put(self, cmd):
         if isinstance(cmd, Command):
@@ -26,14 +26,22 @@ class CommandHandler(Worker):
             logger.warning(f"Object ({cmd}) not a command!")
 
     def stop(self):
-        if WorkerStatus.WORKING == self.status:
+        status = self.get_status()
+        if status in [WorkerStatus.WORKING, WorkerStatus.IDLE]:
             logger.success("Stopping CMD handler thread...")
-            self.status = False
+            self.set_status(WorkerStatus.STOPPED)
 
     def run(self):
-        while WorkerStatus.WORKING == self.status:
+        status = self.get_status()
+
+        while status in [WorkerStatus.WORKING, WorkerStatus.IDLE]:
             try:
                 cmd = self.commands.get(timeout=1)
                 cmd.execute()
             except Empty:
+                self.set_status(WorkerStatus.IDLE)
                 sleep(1)
+            except Exception:
+                self.set_status(WorkerStatus.ERROR)
+            # finally:
+            #     self.set_status(WorkerStatus.STOPPED)
