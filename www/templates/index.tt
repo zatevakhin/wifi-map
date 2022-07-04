@@ -23,7 +23,22 @@
 {% end %}
 
 {% block body %}
-<div id="map-view"></div>
+<div id="main">
+    <div id="map-view"></div>
+    <div id="table-view">
+        <table class="table table-sm table-striped table-bordered table-dark">
+            <thead>
+                <tr>
+                <th scope="col">BSSID</th>
+                <th scope="col">SSID</th>
+                <th scope="col">Channel</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
 <div class="user-gps-position-icon" style="display:none"></div>
 <div class="access-point-icon" style="display:none"></div>
 
@@ -39,12 +54,6 @@
 <div class="btn-group" id="devices-list" style="display:none"></div>
 <div class="btn-group" id="devices-operations" style="display:none"></div>
 
-<div class="btn-group" id="display-mode-controls">
-    <!-- 0 - Heatmap, 1 - Markers -->
-    <button type="button" class="btn btn-secondary btn-sm" data-display-as="0"><i class="mdi mdi-map"></i></button>
-    <button type="button" class="btn btn-secondary btn-sm" data-display-as="1"><i class="mdi mdi-map-marker-multiple"></i></button>
-</div>
-
 <script type="text/template" id="tt-channels-bar-item">
     <button type="button" class="btn btn-secondary btn-sm" data-channel="{channel}">{channel}</button>
 </script>
@@ -53,9 +62,16 @@
     <button type="button" title="{title}" class="btn btn-secondary btn-sm" data-device="{device}" data-action="{action}">{text}</button>
 </script>
 
-
 <script type="text/template" id="tt-device-item">
     <button type="button" class="btn btn-sm" data-device="{device}" data-enabled="{enabled}" data-monitor="{monitor}" data-monitor-available={monitor_available}>{device}</button>
+</script>
+
+<script type="text/template" id="tt-device-table-row">
+    <tr>
+        <td>{bssid}</td>
+        <td>{ssid}</td>
+        <td>{channel}</td>
+    </tr>
 </script>
 
 <canvas id="canvas-txt" style="display:none"></canvas>

@@ -121,13 +121,6 @@ class CmdSaveAcessPointData(Command):
         }
 
     def save_access_point_geoposition(self, cursor, item, access_point):
-
-        is_latitude_close = math.isclose(self.position.latitude, 0.0, rel_tol=1e-1)
-        is_longitude_close = math.isclose(self.position.longitude, 0.0, rel_tol=1e-1)
-        
-        if is_latitude_close and is_longitude_close:
-            return None
-
         ap_geoposition = self.get_access_point_geoposition(cursor, access_point)
 
         if ap_geoposition:

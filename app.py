@@ -34,7 +34,7 @@ def main():
         (DATA_MANAGER, DataManager(storage)),
         (GPS_POLLER, GpsPoller(storage)),
         (WIFI_SCANNER, WiFiScanner(storage)),
-        (WIFI_SNIFFER, WiFiSniffer(storage))
+        # (WIFI_SNIFFER, WiFiSniffer(storage))
     ]
 
     storage.set("services", services)

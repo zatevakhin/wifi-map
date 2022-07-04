@@ -34,6 +34,8 @@ class RequestMapData(IntEnum):
 
     STATUS_GPS = auto()
     STATUS_SERVICES = auto()
+    MOVE_UPDATE = auto()
+    SHOW_ACTIVE = auto()
 
 
 class ConnectedClient:
@@ -47,6 +49,8 @@ class ConnectedClient:
         }
 
         self.gps_status = GpsStatus.DISCONNECTED
+
+        self.ap_in_bounds = set()
 
 
 class WebSocketApi(websocket.WebSocketHandler):
@@ -100,6 +104,10 @@ class WebSocketApi(websocket.WebSocketHandler):
             self.send_current_gps_status()
         elif action in [int(RequestMapData.STATUS_SERVICES)]:
             self.send_services_status()
+        elif action in [int(RequestMapData.MOVE_UPDATE)]:
+            self.send_select_from_bounds(message.get("bounds", []))
+        elif action in [int(RequestMapData.SHOW_ACTIVE)]:
+            self.send_active_access_points()
         else:
             logger.error(message)
 
@@ -200,6 +208,46 @@ class WebSocketApi(websocket.WebSocketHandler):
         services_list = list(map(lambda service: (service[0], int(service[1].get_status().value)), services))
 
         self.write_message({"return": int(RequestMapData.STATUS_SERVICES), "services": services_list})
+
+    def send_select_from_bounds(self, bounds):
+
+        with self.db.connect() as connection:
+            records = connection.execute(f'''
+            SELECT bssid,latitude,longitude,ssid,channel,crypto FROM
+                AccessPoint AS ap
+                JOIN AtGeoposition as g ON g.ap_id = ap.id
+                JOIN WithSsid as s ON s.ap_id = ap.id
+                JOIN AtChannel as c ON c.ap_id = ap.id
+                JOIN WithEncryption as e ON e.ap_id = ap.id
+            WHERE latitude <= ? AND longitude <= ? AND latitude >= ? AND longitude >= ?
+            ''', bounds).fetchall()
+
+            in_bounds = self.client_data.ap_in_bounds
+            new_in_bounds = set(map(lambda item: item.get("bssid"), records))
+
+            removed = in_bounds - new_in_bounds
+            added = new_in_bounds - in_bounds
+
+            for item in removed:
+                in_bounds.remove(item)
+
+            for item in added:
+                in_bounds.add(item)
+
+            self.client_data.ap_in_bounds = in_bounds
+
+            data = []
+            for item in records:
+                bssid = item.get("bssid")
+                if bssid in added:
+                    data.append(item)
+
+
+            self.write_message({"return": int(RequestMapData.MOVE_UPDATE), "removed": list(removed), "added": data, "count": len(data)})
+
+    def send_active_access_points(self):
+        visible_access_points = self.client_data.visible_access_points
+        self.write_message({"return": int(RequestMapData.SHOW_ACTIVE), "active": visible_access_points})
 
     def on_error(self):
         pass

@@ -1,8 +1,25 @@
+#main {
+    height: 100vh;
+    width: 100%;
+    /* overflow: hidden; */
+}
+
 #map-view {
     height: 100vh;
     width: 100%;
-  }
-  
+}
+
+#table-view {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    z-index: 1000;
+    height: 100vh;
+    width: 25%;
+    background-color: white;
+    overflow: auto;
+}
+
 /* #channels-list {
     position: absolute;
     right: 10px;
@@ -19,7 +36,7 @@
 
 #devices-list {
     position: absolute;
-    right: 10px;
+    left: 10px;
     top: 10px;
     z-index: 999;
 }
@@ -51,7 +68,7 @@
     border-radius: 12px;
     box-shadow: 2px 2px;
 }
-  
+
 .access-point-icon {
     position: absolute;
     background: blue;

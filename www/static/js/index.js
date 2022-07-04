@@ -35,6 +35,8 @@ const RequestMapData = Object.freeze({
 
     STATUS_GPS: 0x0A,
     STATUS_SERVICES: 0x0B,
+    MOVE_UPDATE: 0x0C,
+    SHOW_ACTIVE: 0x0D,
 })
 
 let rand = (min, max) => {
@@ -148,18 +150,15 @@ class MapView {
         this.mapSettings = { center: "0 0", zoom: 4 };
 
         this.map = null;
-        this.mapHeatmapLayer = null;
-        this.mapHeatmapLayerSignal = null;
         this.mapMarkerCluster = null;
-
-        this.mapMarkersLayer = null;
-
-        this.markerList = {};
 
         this.ws_host = window.location.hostname;
 
         this.websocket = null;
         this.websocketReconnect = null;
+
+        this.markers_in_area = {};
+        this.access_points_in_area = {};
     }
 
     on_websocket_message(data) {
@@ -169,13 +168,9 @@ class MapView {
         {
             this.on_position_update(data);
         }
-        else if (data.return === RequestMapData.VISIBLE_ACCESS_POINTS)
+        else if (data.return === RequestMapData.SHOW_ACTIVE)
         {
-            this.on_access_points_list_update(data);
-        }
-        else if (data.return === RequestMapData.WIFI)
-        {
-            this.on_map_data_update(data);
+            this.on_active_access_points(data.active);
         }
         else if (data.return === RequestMapData.STATUS_SERVICES)
         {
@@ -184,6 +179,10 @@ class MapView {
         else if (data.return === RequestMapData.STATUS_GPS)
         {
             this.on_gps_status_updated(data);
+        }
+        else if (data.return === RequestMapData.MOVE_UPDATE)
+        {
+            this.on_move_update(data.added, data.removed);
         }
         else if (data.return === RequestMapData.AVAILABLE_WIRELESS_INTERFACES)
         {
@@ -255,44 +254,10 @@ class MapView {
         }
     }
 
-    on_map_data_update(data) {
-        let accessPoints = localStorage.getObject("accessPoints") || {};
-
-        for (let i = 0; i < data.records.length; i++) {
-            const e = data.records[i];
-            accessPoints[e.bssid] = e;
-        }
-
-        localStorage.setObject("accessPoints", accessPoints)
-
-        this.on_markers_update(Object.values(accessPoints))
-    }
-
-    on_access_points_list_update(data) {
-
-        console.log("on_access_points_list_update", data)
-
-        Object.keys(this.markerList).forEach((id) => {
-            let marker = this.markerList[id];
-            let icon = marker.getIcon();
-
-            let isIncludes = data.devices.includes(id);
-
-            marker.setZIndexOffset(isIncludes ? 100 : 0);
-            icon.options.iconUrl = isIncludes ? Marker.Green : Marker.Gray;
-
-            marker.setIcon(icon);
-        })
-    }
-
-    on_markers_update(data) {
-        data.forEach((ap) => {
-            this.add_access_point_marker(ap);
-        })
-    }
-
-    on_heatmap_update(data) {
-
+    get_map_bounds()
+    {
+        let bounds = this.map.getBounds();
+        return [bounds.getNorth(), bounds.getEast(), bounds.getSouth(), bounds.getWest()];
     }
 
     run() {
@@ -324,6 +289,9 @@ class MapView {
 
         this.map.on('move', (e) => {
             Cookie.set("map_center", Object.values(this.map.getCenter()).join(" "))
+            let bounds = this.get_map_bounds()
+
+            this.websocket.send({"action": RequestMapData.MOVE_UPDATE, "bounds": bounds});
         });
 
         this.map.on('contextmenu.select', (e) => {
@@ -340,6 +308,10 @@ class MapView {
 
         this.websocket.setOpenHandler((e) => {
             $("#system-statuses span.web-socket-status i").css({"color": "green"});
+
+            let bounds = this.get_map_bounds()
+            this.websocket.send({"action": RequestMapData.MOVE_UPDATE, "bounds": bounds});
+
         });
 
         this.websocket.setCloseHandler((e) => {
@@ -349,27 +321,20 @@ class MapView {
         this.websocket.connect();
 
         setInterval(() => {
-            this.websocket.send({"action": RequestMapData.WIFI});
-        }, 1000 * 5);
-
-        setInterval(() => {
             this.websocket.send({"action": RequestMapData.POSITION});
         }, 1000 * 5);
 
         setInterval(() => {
-            this.websocket.send({"action": RequestMapData.VISIBLE_ACCESS_POINTS});
+            let bounds = this.get_map_bounds()
+            this.websocket.send({"action": RequestMapData.MOVE_UPDATE, "bounds": bounds});
         }, 1000 * 5);
 
         setInterval(() => {
-            this.websocket.send({"action": RequestMapData.AVAILABLE_WIRELESS_INTERFACES});
+            this.websocket.send({"action": RequestMapData.SHOW_ACTIVE});
         }, 1000 * 5);
 
         setInterval(() => {
             this.websocket.send({"action": RequestMapData.STATUS_GPS});
-        }, 1000 * 5);
-
-        setInterval(() => {
-            this.websocket.send({"action": RequestMapData.STATUS_SERVICES});
         }, 1000 * 5);
 
 
@@ -439,67 +404,93 @@ class MapView {
         });
     }
 
-    add_access_point_marker(ap) {
-        // let image = new Image();
+    on_move_update(added, removed)
+    {
+        added.forEach((ap) => {
+            this.add_access_point(ap);
+        });
 
-        // var canvas = document.getElementById("canvas-txt");
+        removed.forEach((bssid) => {
+            // this.map.removeLayer(this.markers_in_area[bssid])
+            this.mapMarkerCluster.removeLayer(this.markers_in_area[bssid])
+            delete this.markers_in_area[bssid];
+            delete this.access_points_in_area[ap.bssid];
+        });
 
-        // image.onload = () => {
-        //     var ctx = canvas.getContext("2d");
-        //     ctx.drawImage(image, 0, 0);
-        //     ctx.fillRect(10, 10, 5, 5);
+        this.update_access_points_table();
+    }
 
-        //     let marker = this.markerList[ap.bssid];
-        //     let icon = marker.getIcon();
+    update_access_points_table()
+    {
+        $("#table-view table tbody").empty();
+        for (let prop in this.access_points_in_area) {
+            if (this.access_points_in_area.hasOwnProperty(prop))
+            {
+                let item = this.access_points_in_area[prop];
 
-        //     icon.options.iconUrl = canvas.toDataURL("image/png");
-        //     marker.setIcon(icon);
-        // }
+                $("#table-view table tbody").append(aux.template("tt-device-table-row", {
+                    bssid: item.bssid,
+                    ssid: (item.ssid || "&lt;HIDDEN&gt;"),
+                    channel: item.channel,
+                }));
+            }
+        }
 
-        // image.src = Marker.Gray;
 
-        if (!this.markerList[ap.bssid])
+    }
+
+    add_access_point(ap)
+    {
+        if (!this.access_points_in_area[ap.bssid])
         {
-            this.markerList[ap.bssid] = L.marker([
+            this.access_points_in_area[ap.bssid] = ap;
+        }
+
+        if (!this.markers_in_area[ap.bssid])
+        {
+            let marker = L.marker([
                 ap.latitude + rand(-0.0005, 0.0005),
                 ap.longitude + rand(-0.0005, 0.0005)
-            ], {
-                contextmenu: true,
-                contextmenuInheritItems: false,
-                contextmenuItems: [
-                    {
-                        text: 'Add to capture list',
-                        callback: (e) => { console.log(e); }
-                    },
-                    {
-                        text: 'DoS',
-                        callback: (e) => { console.log(arguments) }
-                    }
-                ],
+            ],{
                 icon: L.icon.glyph({
-                iconUrl: Marker.Gray,
-                prefix: 'mdi',
-                glyph: 'router-wireless',
-                glyphColor: ap.ssid ? 'white' : 'black',
-            })});
+                    iconUrl: Marker.Gray,
+                    prefix: 'mdi',
+                    glyph: 'router-wireless',
+                    glyphColor: ap.ssid ? 'white' : 'black',
+                })
+            });
+
+            let tooltipText = "SSID: " + (ap.ssid || "&lt;EMPTY&gt;") + "<br>"
+            tooltipText += "BSSID: " + ap.bssid + "<br>"
+            tooltipText += "Channel: " + ap.channel + "<br>"
+            if (ap.encrypted) {
+                tooltipText += "Encryption: " + ap.encryption + "<br>"
+            }
+
+            marker.bindTooltip(tooltipText);
+
+            this.markers_in_area[ap.bssid] = marker
+
+            // marker.addTo(this.map);
+            this.mapMarkerCluster.addLayer(marker);
         }
-
-        let marker = this.markerList[ap.bssid];
-        console.log("menu", marker.options.contextmenuItems)
-
-        // marker.setLatLng(new L.LatLng(ap.latitude + rand(-0.0005, 0.0005), ap.longitude + rand(-0.0005, 0.0005)));
-
-        let tooltipText = "SSID: " + (ap.ssid || "&lt;EMPTY&gt;") + "<br>"
-        tooltipText += "BSSID: " + ap.bssid + "<br>"
-        tooltipText += "Channel: " + ap.channel + "<br>"
-        if (ap.encrypted) {
-            tooltipText += "Encryption: " + ap.encryption + "<br>"
-        }
-
-        marker.bindTooltip(tooltipText);
-
-        this.mapMarkerCluster.addLayer(marker);
     }
+
+    on_active_access_points(active)
+    {
+        Object.keys(this.markers_in_area).forEach((id) => {
+            let marker = this.markers_in_area[id];
+            let icon = marker.getIcon();
+
+            let isIncludes = active.includes(id);
+
+            marker.setZIndexOffset(isIncludes ? 100 : 0);
+            icon.options.iconUrl = isIncludes ? Marker.Green : Marker.Gray;
+
+            marker.setIcon(icon);
+        })
+    }
+
 }
 
 
